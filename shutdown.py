@@ -30,36 +30,47 @@ print "\n=======================================================================
 print "   ATXRaspi shutdown IRQ script started: asserted pins (",SHUTDOWN, "=input,LOW; ",BOOT,"=output,HIGH)"
 print "   Waiting for GPIO", SHUTDOWN, "to become HIGH (short HIGH pulse=REBOOT, long HIGH=SHUTDOWN)..."
 print "=========================================================================================="
-try:
-        while True:
-                GPIO.wait_for_edge(SHUTDOWN, GPIO.RISING)
-                shutdownSignal = GPIO.input(SHUTDOWN)
-                pulseStart = time.time() #register time at which the button was pressed
-                while shutdownSignal:
-                        time.sleep(0.2)
-                        if(time.time() - pulseStart >= REBOOTPULSEMAXIMUM):
-                                print "\n====================================================================================="
-                                print "            SHUTDOWN request from GPIO", SHUTDOWN, ", halting Rpi ..."
-                                print "====================================================================================="
-                                os.system("sudo poweroff")
-                                sys.exit()
-                        shutdownSignal = GPIO.input(SHUTDOWN)
 
-                if time.time() - pulseStart >= REBOOTPULSEMINIMUM:
-                        print "\n====================================================================================="
-                        print "            REBOOT request from GPIO", SHUTDOWN, ", recycling Rpi ..."
-                        print "====================================================================================="
-                        os.system("sudo reboot")
-                        sys.exit()
-                if GPIO.input(SHUTDOWN): #before looping we must make sure the shutdown signal went low
-                        GPIO.wait_for_edge(SHUTDOWN, GPIO.FALLING)
-                
+GPIO.add_event_detect(SHUTDOWN, GPIO.RISING, callback=powerSwitch)
+GPIO.add_event_detect(RESET_RETROARCH, GPIO.RISING, callback=resetRetroArch)
+
+def powerSwitch(callback):
+        try:
+                while True:
+                        # GPIO.wait_for_edge(SHUTDOWN, GPIO.RISING)
+                        shutdownSignal = GPIO.input(SHUTDOWN)
+                        pulseStart = time.time() #register time at which the button was pressed
+                        while shutdownSignal:
+                                time.sleep(0.2)
+                                if(time.time() - pulseStart >= REBOOTPULSEMAXIMUM):
+                                        print "\n====================================================================================="
+                                        print "            SHUTDOWN request from GPIO", SHUTDOWN, ", halting Rpi ..."
+                                        print "====================================================================================="
+                                        os.system("sudo poweroff")
+                                        sys.exit()
+                                shutdownSignal = GPIO.input(SHUTDOWN)
+
+                        if time.time() - pulseStart >= REBOOTPULSEMINIMUM:
+                                print "\n====================================================================================="
+                                print "            REBOOT request from GPIO", SHUTDOWN, ", recycling Rpi ..."
+                                print "====================================================================================="
+                                os.system("sudo reboot")
+                                sys.exit()
+                        if GPIO.input(SHUTDOWN): #before looping we must make sure the shutdown signal went low
+                                GPIO.wait_for_edge(SHUTDOWN, GPIO.FALLING)
+        except:
+                pass 
+        finally:
+                GPIO.cleanup()
+
+def resetRetroArch(callback):
+        try:
                 if (not key_esc) and (not GPIO.input(RESET_RETROARCH)): 
                         os.system("killall -9 retroarch")
                         key_esc = True
                 if key_esc and GPIO.input(RESET_RETROARCH):
                         key_esc = False
-except:
-        pass 
-finally:
-        GPIO.cleanup()
+        except Exception as e:
+                pass
+        finally:
+                GPIO.cleanup()
